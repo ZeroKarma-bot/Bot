@@ -4,6 +4,7 @@
     "axios": "^1.7.2",
     "discord.js": "^14.15.3",
     "discord.js-akinator": "^5.0.0",
+    "index.js": "^0.0.3",
     "luxon": "^3.4.4"
   },
   "name": "bot-v2",

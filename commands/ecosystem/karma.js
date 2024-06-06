@@ -5,7 +5,7 @@ const path = require('path');
 const { DateTime } = require('luxon');
 const { embedColor } = require('../../config.json');
 
-const KARMA_FILE_PATH = path.join(__dirname, './karma.json');
+const KARMA_FILE_PATH = path.join(__dirname, './karma.json'); // Updated path
 
 function loadKarmaData() {
     if (!fs.existsSync(KARMA_FILE_PATH)) {
@@ -24,20 +24,19 @@ function requiredKarma(level) {
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('goodmorning')
-        .setDescription('Greet another user and earn karma')
-        .addUserOption(option =>
-            option.setName('user')
-                .setDescription('The user you want to greet')
-                .setRequired(true)),
+        .setName('karma')
+        .setDescription('Karma commands')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('check')
+                .setDescription('Check your karma balance and level'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('daily')
+                .setDescription('Claim your daily karma')),
     async execute(interaction) {
         const username = interaction.user.username;
-        const targetUser = interaction.options.getUser('user');
-
-        if (targetUser.id === interaction.user.id) {
-            return interaction.reply({ content: 'You cannot use this command on yourself.', ephemeral: true });
-        }
-
+        const userDM = await interaction.user.createDM();
         let data = loadKarmaData();
 
         if (!data.users[username]) {
@@ -46,62 +45,89 @@ module.exports = {
                 level: 1,
                 last_daily: null,
                 streak: 0,
-                next_daily: null,
-                goodmorning: []
+                next_daily: null
             };
+            saveKarmaData(data);
         }
 
         const user = data.users[username];
-        if (!user.goodmorning) {
-            user.goodmorning = [];
-        }
 
-        const now = DateTime.utc();
+        if (interaction.options.getSubcommand() === 'check') {
+            const currentKarma = user.karma;
+            const currentLevel = user.level;
+            const nextLevelKarma = requiredKarma(currentLevel);
 
-        // Filter out entries older than 24 hours
-        user.goodmorning = user.goodmorning.filter(timestamp => DateTime.fromISO(timestamp).plus({ hours: 24 }) > now);
-
-        if (user.goodmorning.length >= 3) {
             const embed = new EmbedBuilder()
                 .setColor(embedColor)
-                .setTitle('🌞 Good Morning!')
-                .setDescription(`Good morning, ${targetUser}! Have a great day ahead! 🌞`)
-                .setTimestamp();
+                .setTitle('Karma Status')
+                .setDescription(`**${username}** - Karma Status`)
+                .addFields(
+                    { name: 'Current Karma', value: `\`${currentKarma}/${nextLevelKarma}\``, inline: false },
+                    { name: 'Current Level', value: `**${currentLevel}**`, inline: false },
+                    { name: 'Karma Needed for Next Level', value: `\`${nextLevelKarma - currentKarma}\``, inline: false }
+                )
+                .setFooter({ text: 'Keep earning karma to level up!' });
 
-            return interaction.reply({ embeds: [embed] });
-        }
+            await interaction.reply({ embeds: [embed] });
+        } else if (interaction.options.getSubcommand() === 'daily') {
+            const now = DateTime.utc();
 
-        user.goodmorning.push(now.toISO());
-        user.karma += 20;
+            if (user.next_daily && now < DateTime.fromISO(user.next_daily)) {
+                const nextAvailable = DateTime.fromISO(user.next_daily);
+                const timeRemaining = nextAvailable.diff(now, ['hours', 'minutes']).toObject();
 
-        let leveledUp = false;
-        while (user.karma >= requiredKarma(user.level)) {
-            user.karma -= requiredKarma(user.level);
-            user.level += 1;
-            leveledUp = true;
-        }
+                const embed = new EmbedBuilder()
+                    .setColor(embedColor)
+                    .setTitle('Daily Karma')
+                    .setDescription(`You cannot use this command yet. Next available in **${Math.floor(timeRemaining.hours)} hours and ${Math.floor(timeRemaining.minutes)} minutes**.`);
 
-        data.users[username] = user;
-        saveKarmaData(data);
+                return interaction.reply({ embeds: [embed], ephemeral: true });
+            }
 
-        const embed = new EmbedBuilder()
-            .setColor(embedColor)
-            .setTitle('🌞 Good Morning!')
-            .setDescription(`Good morning, ${targetUser}! Have a great day ahead!`)
-            .setTimestamp();
+            let dailyKarma;
+            if (user.last_daily) {
+                const lastDaily = DateTime.fromISO(user.last_daily);
+                if (now < lastDaily.plus({ hours: 48 })) {
+                    user.streak += 1;
+                    dailyKarma = 100 + (user.streak * 20); // Increase daily karma by 20 for each streak day
+                } else {
+                    // User has lost their streak
+                    await userDM.send(`You have lost your streak of **${user.streak}** because you haven't used the \`/karma\` daily command.`);
+                    user.streak = 1;
+                    dailyKarma = 110; // Reset daily karma to 110 if streak is lost
+                }
+            } else {
+                user.streak = 1;
+                dailyKarma = 110; // Initial daily karma amount
+            }
 
-        await interaction.reply({ embeds: [embed] });
+            user.last_daily = now.toISO();
+            user.next_daily = now.plus({ hours: 24 }).toISO();
+            user.karma += dailyKarma; // Directly update the user's karma here
 
-        await interaction.followUp({
-            content: `You have gained **20 karma points** for greeting ${targetUser.username}!`,
-            ephemeral: true
-        });
+            let leveledUp = false;
+            while (user.karma >= requiredKarma(user.level)) {
+                user.karma -= requiredKarma(user.level);
+                user.level += 1;
+                leveledUp = true;
+            }
 
-        if (leveledUp) {
-            await interaction.followUp({
-                content: `Congratulations! You have leveled up to **Level ${user.level}**!`,
-                ephemeral: true
-            });
+            data.users[username] = user; // Ensure the updated user data is saved
+            saveKarmaData(data);
+
+            const embed = new EmbedBuilder()
+                .setColor(embedColor)
+                .setTitle('🎉 Daily Karma Claimed! 🎉')
+                .setDescription(`Daily karma claimed! You received **${dailyKarma}** karma points. Current streak: **${user.streak}** days.`);
+
+            await interaction.reply({ embeds: [embed] });
+
+            if (leveledUp) {
+                await interaction.followUp({
+                    content: `Congratulations! You have leveled up to **Level ${user.level}**!`,
+                    ephemeral: true
+                });
+            }
         }
     }
 };
