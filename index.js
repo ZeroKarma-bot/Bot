@@ -16,6 +16,7 @@ const server = http.createServer((req, res) => {
 server.listen(3000, () => {
   console.log("Server Online because of Axo Coder ✅!!");
 });
+
 const {
   Client,
   GatewayIntentBits,
@@ -79,6 +80,22 @@ loadCommandStates();
 
 // Load admin command states initially
 loadAdminCommandStates();
+
+// Watch for changes in the commandStates.json file
+fs.watch(commandStatesPath, (eventType, filename) => {
+  if (eventType === "change") {
+    console.log("commandStates.json file changed, reloading...");
+    loadCommandStates();
+  }
+});
+
+// Watch for changes in the adminCommandStates.json file
+fs.watch(adminCommandStatesPath, (eventType, filename) => {
+  if (eventType === "change") {
+    console.log("adminCommandStates.json file changed, reloading...");
+    loadAdminCommandStates();
+  }
+});
 
 // Function to recursively read command files from subdirectories
 const readCommands = (dir) => {
