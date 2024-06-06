@@ -1,161 +1,246 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const { embedColor } = require('../../config.json');
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+} = require("discord.js");
+const { embedColor } = require("../../config.json"); // Ensure embedColor is imported
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('rps')
-    .setDescription('Play a best-of-three Rock, Paper, Scissors game!'),
-  async execute(interaction) {
-    const choices = ['rock', 'paper', 'scissors'];
+    .setName("tictactoe")
+    .setDescription("Play a game of Tic-Tac-Toe against the bot!"),
+  execute: async (interaction) => {
+    const emptyBoard = [" ", " ", " ", " ", " ", " ", " ", " ", " "];
+    let board = [...emptyBoard];
+    let currentPlayer = "X"; // Player starts as 'X'
+    const playerMarker = "X";
+    const aiMarker = "O";
+
     const emojis = {
-      rock: '✊',
-      paper: '📰',
-      scissors: '✂️'
+      " ": "⬛",
+      X: "❌",
+      O: "⭕",
     };
 
-    const botWinSayings = [
-      'HAHA I WON', 
-      'UR BAD', 
-      'Better luck next time!', 
-      'Nice try!', 
-      'Too easy!', 
-      'You can\'t beat me!'
-    ];
+    const createBoardEmbed = () => {
+      const boardString = board.map((cell) => emojis[cell]).join("");
+      const formattedBoard = `${boardString.slice(0, 3)}\n${boardString.slice(3, 6)}\n${boardString.slice(6, 9)}`;
 
-    const botLoseSayings = [
-      'You got lucky!', 
-      'DAMN IT!', 
-      'I demand a rematch!', 
-      'No way!', 
-      'How did you do that?', 
-      'I\'ll get you next time!'
-    ];
+      return new EmbedBuilder()
+        .setColor(embedColor)
+        .setTitle("Tic-Tac-Toe")
+        .setDescription(
+          `**Current Player: ${currentPlayer === playerMarker ? "You 👤" : "Bot 🤖"}**\n\n${formattedBoard}`,
+        )
+        .setFooter({ text: "Use the dropdown menu to make your move." });
+    };
 
-    const botTieSayings = [
-      'It\'s a draw!', 
-      'We\'re evenly matched!', 
-      'Try again?', 
-      'So close!', 
-      'Neither wins!', 
-      'Let\'s go again!'
-    ];
+    const createSelectMenu = () => {
+      const options = board
+        .map((cell, index) => {
+          if (cell === " ") {
+            const row = Math.floor(index / 3) + 1;
+            const col = (index % 3) + 1;
+            return {
+              label: `Row ${row}, Col ${col}`,
+              value: `${index}`,
+              description: `Choose the cell at row ${row}, col ${col}`,
+              emoji: "⬛",
+            };
+          }
+          return null;
+        })
+        .filter((option) => option !== null);
 
-    const botEmoji = '🤖';
+      return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId("select")
+          .setPlaceholder("Choose your move...")
+          .addOptions(options),
+      );
+    };
 
-    const embed = new EmbedBuilder()
-      .setColor(embedColor)
-      .setTitle('Rock, Paper, Scissors')
-      .setDescription('Choose your move by selecting an option from the dropdown below:')
-      .setThumbnail('https://example.com/rps.png') // Add an appropriate thumbnail
-      .setFooter({ text: 'Let\'s see who wins!', iconURL: 'https://example.com/footer-icon.png' }); // Add an appropriate footer icon
+    const checkWin = (board) => {
+      const winningCombinations = [
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8], // Rows
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8], // Columns
+        [0, 4, 8],
+        [2, 4, 6], // Diagonals
+      ];
 
-    const selectMenu = new StringSelectMenuBuilder()
-      .setCustomId('select')
-      .setPlaceholder('Choose your move...')
-      .addOptions([
-        {
-          label: 'Rock',
-          description: 'Choose Rock',
-          value: 'rock',
-          emoji: '✊',
-        },
-        {
-          label: 'Paper',
-          description: 'Choose Paper',
-          value: 'paper',
-          emoji: '📰',
-        },
-        {
-          label: 'Scissors',
-          description: 'Choose Scissors',
-          value: 'scissors',
-          emoji: '✂️',
-        },
-      ]);
-
-    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-    await interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-
-    const filter = i => i.user.id === interaction.user.id;
-
-    let userScore = 0;
-    let botScore = 0;
-    let round = 0;
-
-    const playRound = async (i) => {
-      round++;
-      const userChoice = i.values[0];
-      const botChoice = choices[Math.floor(Math.random() * choices.length)];
-
-      let result, randomSaying;
-      if (userChoice === botChoice) {
-        result = 'It\'s a tie!';
-        randomSaying = botTieSayings[Math.floor(Math.random() * botTieSayings.length)];
-      } else if (
-        (userChoice === 'rock' && botChoice === 'scissors') ||
-        (userChoice === 'paper' && botChoice === 'rock') ||
-        (userChoice === 'scissors' && botChoice === 'paper')
-      ) {
-        result = 'You win!';
-        randomSaying = botLoseSayings[Math.floor(Math.random() * botLoseSayings.length)];
-        userScore++;
-      } else {
-        result = 'You lose!';
-        randomSaying = botWinSayings[Math.floor(Math.random() * botWinSayings.length)];
-        botScore++;
+      for (const combination of winningCombinations) {
+        const [a, b, c] = combination;
+        if (
+          board[a] !== " " &&
+          board[a] === board[b] &&
+          board[a] === board[c]
+        ) {
+          return board[a];
+        }
       }
+      return null;
+    };
 
-      // Add a 2-second delay before showing the result
-      setTimeout(async () => {
+    const checkTie = (board) => {
+      return board.every((cell) => cell !== " ");
+    };
+
+    const makeAIMove = async () => {
+      const emptyIndexes = board
+        .map((cell, index) => (cell === " " ? index : null))
+        .filter((index) => index !== null);
+
+      const randomIndex =
+        emptyIndexes[Math.floor(Math.random() * emptyIndexes.length)];
+      board[randomIndex] = aiMarker;
+
+      // Add a delay for the AI's move
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    };
+
+    const updateGame = async (i) => {
+      await i.deferUpdate(); // Defer the update to prevent interaction timeout
+
+      const index = parseInt(i.values[0]);
+      board[index] = playerMarker;
+
+      let winner = checkWin(board);
+      let isTie = checkTie(board);
+
+      if (winner || isTie) {
         const resultEmbed = new EmbedBuilder()
           .setColor(embedColor)
-          .setTitle(`Round ${round} Results Are in!`)
+          .setTitle("Tic-Tac-Toe - Game Over")
           .setDescription(
-            `**You chose** ${emojis[userChoice]} **${userChoice}**\n` +
-            `**Bot chose** ${emojis[botChoice]} **${botChoice}**\n\n` +
-            `**${result}**\n\n` +
-            `${botEmoji}  *${randomSaying}*\n\n` +
-            `**Score:** You ${userScore} - ${botScore} Bot`
+            winner
+              ? `**${winner === playerMarker ? "You 👤" : "Bot 🤖"} win!**\n\n${createBoardEmbed().data.description}`
+              : `**It's a tie!**\n\n${createBoardEmbed().data.description}`,
           )
-          .setFooter({ text: 'Thanks for playing!' }); // Add an appropriate footer icon
+          .setFooter({ text: "Thanks for playing!" });
 
-        // Send the result as a new message
-        await i.update({ embeds: [resultEmbed], components: [] });
+        await interaction.editReply({
+          embeds: [resultEmbed],
+          components: [],
+          ephemeral: true,
+        });
 
-        // Check if the game is over
-        if (userScore >= 2 && userScore > botScore) {
-          await interaction.followUp({ content: '🎉 Congratulations! You won the best of three games. 🎉', ephemeral: true });
-        } else if (botScore >= 2 && botScore > userScore) {
-          await interaction.followUp({ content: '💀 Bot wins the best of three games. Better luck next time! 💀', ephemeral: true });
-        } else if (userScore === 2 && botScore === 2) {
-          if (userScore === 3) {
-            await interaction.followUp({ content: 'Congratulations! You won by reaching 3 wins first.', ephemeral: true });
-          } else if (botScore === 3) {
-            await interaction.followUp({ content: 'The bot wins the game by reaching 3 wins first. Better luck next time!', ephemeral: true });
-          } else {
-            await interaction.followUp({ embeds: [embed], components: [row], ephemeral: true });
-          }
+        // Send a follow-up message with the result
+        if (winner) {
+          await interaction.followUp({
+            content:
+              winner === playerMarker
+                ? "Congratulations! You win! 🎉"
+                : "Sorry, you lose. The bot wins. 🤖",
+            ephemeral: true,
+          });
         } else {
-          await interaction.followUp({ embeds: [embed], components: [row], ephemeral: true });
+          await interaction.followUp({
+            content: "It's a tie! Well played! 🤝",
+            ephemeral: true,
+          });
         }
-      }, 2000);
+
+        return true; // Game over
+      } else {
+        currentPlayer = aiMarker;
+        await interaction.editReply({
+          embeds: [createBoardEmbed()],
+          components: [],
+          ephemeral: true,
+        });
+
+        await makeAIMove();
+        currentPlayer = playerMarker;
+
+        winner = checkWin(board);
+        isTie = checkTie(board);
+
+        if (winner || isTie) {
+          const resultEmbed = new EmbedBuilder()
+            .setColor(embedColor)
+            .setTitle("Tic-Tac-Toe - Game Over")
+            .setDescription(
+              winner
+                ? `**${winner === playerMarker ? "You 👤" : "Bot 🤖"} win!**\n\n${createBoardEmbed().data.description}`
+                : `**It's a tie!**\n\n${createBoardEmbed().data.description}`,
+            )
+            .setFooter({ text: "Thanks for playing!" });
+
+          await interaction.editReply({
+            embeds: [resultEmbed],
+            components: [],
+            ephemeral: true,
+          });
+
+          // Send a follow-up message with the result
+          if (winner) {
+            await interaction.followUp({
+              content:
+                winner === playerMarker
+                  ? "Congratulations! You win! 🎉"
+                  : "Sorry, you lose. The bot wins. 🤖",
+              ephemeral: true,
+            });
+          } else {
+            await interaction.followUp({
+              content: "It's a tie! Well played! 🤝",
+              ephemeral: true,
+            });
+          }
+
+          return true; // Game over
+        }
+        await interaction.editReply({
+          embeds: [createBoardEmbed()],
+          components: [createSelectMenu()],
+          ephemeral: true,
+        });
+        return false; // Game continues
+      }
     };
 
-    const collector = interaction.channel.createMessageComponentCollector({ filter, time: 60000 });
+    if (currentPlayer === aiMarker) {
+      await interaction.reply({
+        embeds: [createBoardEmbed()],
+        components: [],
+        ephemeral: true,
+      });
+      await makeAIMove();
+      currentPlayer = playerMarker;
+    }
 
-    collector.on('collect', async i => {
-      await playRound(i);
-      if (userScore >= 3 || botScore >= 3 || (userScore >= 2 && botScore >= 2)) {
-        collector.stop(); // Stop the collector if the game is over
-      }
+    await interaction.reply({
+      embeds: [createBoardEmbed()],
+      components: [createSelectMenu()],
+      ephemeral: true,
     });
 
-    collector.on('end', async collected => {
+    const filter = (i) => i.user.id === interaction.user.id;
+
+    const collector = interaction.channel.createMessageComponentCollector({
+      filter,
+      time: 60000,
+    });
+
+    collector.on("collect", async (i) => {
+      const gameEnded = await updateGame(i);
+      if (gameEnded) collector.stop();
+    });
+
+    collector.on("end", async (collected) => {
       if (collected.size === 0) {
-        // Update the message to indicate that the user did not make a choice in time and remove the embed and components
-        await interaction.editReply({ content: 'You did not make a choice in time!', embeds: [], components: [], ephemeral: true });
+        await interaction.editReply({
+          content: "Time is up! No moves were made in time.",
+          embeds: [],
+          components: [],
+          ephemeral: true,
+        });
       }
     });
-  }
+  },
 };
