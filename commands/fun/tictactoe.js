@@ -123,7 +123,11 @@ module.exports = {
           )
           .setFooter({ text: "Thanks for playing!" });
 
-        await interaction.editReply({ embeds: [resultEmbed], components: [] });
+        await interaction.editReply({
+          embeds: [resultEmbed],
+          components: [],
+          ephemeral: true,
+        });
 
         // Send a follow-up message with the result
         if (winner) {
@@ -147,6 +151,7 @@ module.exports = {
         await interaction.editReply({
           embeds: [createBoardEmbed()],
           components: [],
+          ephemeral: true,
         });
 
         await makeAIMove();
@@ -169,6 +174,7 @@ module.exports = {
           await interaction.editReply({
             embeds: [resultEmbed],
             components: [],
+            ephemeral: true,
           });
 
           // Send a follow-up message with the result
@@ -192,13 +198,18 @@ module.exports = {
         await interaction.editReply({
           embeds: [createBoardEmbed()],
           components: [createSelectMenu()],
+          ephemeral: true,
         });
         return false; // Game continues
       }
     };
 
     if (currentPlayer === aiMarker) {
-      await interaction.reply({ embeds: [createBoardEmbed()], components: [] });
+      await interaction.reply({
+        embeds: [createBoardEmbed()],
+        components: [],
+        ephemeral: true,
+      });
       await makeAIMove();
       currentPlayer = playerMarker;
     }
@@ -206,6 +217,7 @@ module.exports = {
     await interaction.reply({
       embeds: [createBoardEmbed()],
       components: [createSelectMenu()],
+      ephemeral: true,
     });
 
     const filter = (i) => i.user.id === interaction.user.id;
@@ -226,6 +238,7 @@ module.exports = {
           content: "Time is up! No moves were made in time.",
           embeds: [],
           components: [],
+          ephemeral: true,
         });
       }
     });
