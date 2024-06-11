@@ -31,10 +31,13 @@ module.exports = (client) => {
 
     try {
       await interaction.deferReply(); // Defer the reply to give more time for command execution
-      await command.execute(interaction);
-      await interaction.followUp({ content: 'Command executed successfully!' });
+      await command.execute(interaction, client); // Pass the client to the command
+      // If command execution doesn't throw, reply or follow up successfully
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.followUp({ content: 'Command executed successfully!' });
+      }
     } catch (error) {
-      console.error(error);
+      console.error('Error executing command:', error);
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
       } else {

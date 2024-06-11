@@ -1,0 +1,4 @@
+DONT INCLUDE:
+commandstate.json
+karma.json
+node_modules

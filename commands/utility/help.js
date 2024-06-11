@@ -108,10 +108,6 @@ module.exports = {
             .addFields(
               { name: "**/8ball**", value: "Ask the magic 8ball a question" },
               { name: "**/meme**", value: "Get a random meme" },
-              {
-                name: "**/akinator**",
-                value: "Play a guessing game with Akinator",
-              },
               { name: "**/fact**", value: "Get a random fact" },
               { name: "**/fortune**", value: "Get a random fortune" },
               { name: "**/ppsize**", value: "Check your PP size" },

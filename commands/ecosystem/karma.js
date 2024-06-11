@@ -5,7 +5,7 @@ const path = require('path');
 const { DateTime } = require('luxon');
 const { embedColor } = require('../../config.json');
 
-const KARMA_FILE_PATH = path.join(__dirname, './karma.json'); // Updated path
+const KARMA_FILE_PATH = path.join(__dirname, '../../karma.json'); // Updated path
 
 function loadKarmaData() {
     if (!fs.existsSync(KARMA_FILE_PATH)) {
